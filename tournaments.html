@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tournaments & Open Play - PADDLE ZONE</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#0b1b2d] text-slate-100 font-sans min-h-screen p-4 md:p-8 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#132e4d] via-[#0b1b2d] to-[#060e18] antialiased selection:bg-orange-500 selection:text-white">
+
+  <div class="max-w-5xl mx-auto space-y-8">
+
+    <!-- Header -->
+    <header class="flex justify-between items-center py-4 border-b border-white/10">
+      <div>
+        <h1 class="text-2xl font-black italic">PADDLE ZONE <span class="text-orange-500">EVENTS</span></h1>
+        <p class="text-xs text-slate-400">Join upcoming Tournaments & Open Play sessions</p>
+      </div>
+      <a href="index.html" class="text-xs font-bold text-slate-400 hover:text-orange-400 transition uppercase tracking-wider">
+        ← Back to Home
+      </a>
+    </header>
+
+    <!-- ANNOUNCEMENTS GRID -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+      <!-- Tournament Section -->
+      <div class="bg-[#060e18]/80 border border-white/10 p-6 rounded-2xl backdrop-blur-md space-y-4">
+        <div class="flex items-center gap-2 border-b border-white/10 pb-3">
+          <span class="text-xl">🏆</span>
+          <h2 class="text-base font-black uppercase text-orange-400 tracking-wider">Tournament Announcements</h2>
+        </div>
+        <div id="tournamentContainer" class="space-y-4">
+          <!-- Dynamically populated from admin -->
+        </div>
+      </div>
+
+      <!-- Open Play Section -->
+      <div class="bg-[#060e18]/80 border border-white/10 p-6 rounded-2xl backdrop-blur-md space-y-4">
+        <div class="flex items-center gap-2 border-b border-white/10 pb-3">
+          <span class="text-xl">🏓</span>
+          <h2 class="text-base font-black uppercase text-orange-400 tracking-wider">Open Play Announcements</h2>
+        </div>
+        <div id="openPlayContainer" class="space-y-4">
+          <!-- Dynamically populated from admin -->
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- BOOKER REGISTRATION MODAL (WEB3FORMS + LOCALSTORAGE SYNC) -->
+  <div id="joinModal" class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
+    <div class="bg-[#0b1b2d] border border-orange-500/40 max-w-md w-full p-6 rounded-2xl space-y-5 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-white/10 pb-3">
+        <h3 class="text-lg font-black text-white" id="modalEventTitleDisplay">Join Event</h3>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-white font-bold text-sm">✕</button>
+      </div>
+
+      <!-- Web3Forms Form Submission -->
+      <form action="https://api.web3forms.com/submit" method="POST" id="joinForm" onsubmit="handleModalSubmit(event)" class="space-y-4">
+
+        <!-- Web3Forms Access Key -->
+        <input type="hidden" name="access_key" value="9486301b-5180-4a44-9722-d0f8a1035f28">
+        <input type="hidden" name="subject" id="emailSubject" value="New Event Join Request - PADDLE ZONE">
+        <input type="hidden" name="Event Name" id="modalEventTitleInput">
+        <input type="hidden" name="Registration Status" value="Pending Admin Acceptance">
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Full Name</label>
+          <input type="text" name="Full Name" id="partName" required placeholder="Juan Dela Cruz" class="w-full p-3 bg-[#060e18]/80 border border-white/10 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-orange-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Email Address</label>
+          <input type="email" name="Email" id="partEmail" required placeholder="name@example.com" class="w-full p-3 bg-[#060e18]/80 border border-white/10 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-orange-500">
+          <p class="text-[10px] text-slate-400 mt-1">You'll get an email once your registration is accepted or declined.</p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Contact Phone</label>
+          <input type="tel" name="Phone Number" id="partPhone" required placeholder="09171234567" pattern="[0-9]{11}" class="w-full p-3 bg-[#060e18]/80 border border-white/10 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-orange-500">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">GCash Reference Number</label>
+          <input type="text" name="GCash Ref Number" id="partGCash" required placeholder="100XXXXXXXXX" maxlength="16" class="w-full p-3 bg-[#060e18]/80 border border-white/10 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-orange-500">
+        </div>
+
+        <button type="submit" id="modalSubmitBtn" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-black py-3.5 rounded-xl transition shadow-[0_10px_25px_rgba(242,101,34,0.35)] tracking-wider">
+          SUBMIT & REGISTER
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- SUCCESS MODAL -->
+  <div id="successModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+    <div class="bg-[#0b1b2d] border border-orange-500/30 max-w-md w-full p-6 rounded-2xl text-center space-y-4 shadow-2xl">
+      <div class="w-16 h-16 bg-orange-500/10 text-orange-500 rounded-full flex items-center justify-center mx-auto text-3xl font-black">
+        ✓
+      </div>
+      <h2 class="text-xl font-black text-white">Registration Submitted!</h2>
+      <p class="text-sm text-slate-300">
+        Thank you for choosing Paddle Zone! Please check your email for registration confirmation.
+      </p>
+      <button onclick="closeSuccessModal()" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl transition">
+        OK
+      </button>
+    </div>
+  </div>
+
+  <script>
+  let currentSelectedEventName = "";
+  let currentSelectedEventType = "";
+  let currentSelectedEventDate = "";
+
+  function loadPageData() {
+    const bookings = JSON.parse(localStorage.getItem('paddle_bookings')) || [];
+
+    const tournEvents = bookings.filter(b => b.type === "TOURNAMENT");
+    const openEvents = bookings.filter(b => b.type === "OPEN PLAY");
+
+    renderCards(tournEvents, 'tournamentContainer', '🏆 Tournament', 'TOURNAMENT');
+    renderCards(openEvents, 'openPlayContainer', '🏓 Open Play', 'OPEN PLAY');
+  }
+
+  function renderCards(events, containerId, label, typeValue) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+
+    if (events.length === 0) {
+      container.innerHTML = `<p class="text-xs text-slate-500 italic p-3 bg-[#0b1b2d]/40 rounded-xl border border-white/5">No active announcements posted by Admin.</p>`;
+      return;
+    }
+
+    const participants = JSON.parse(localStorage.getItem('paddle_participants')) || [];
+
+    const grouped = {};
+    events.forEach(e => {
+      const key = `${e.name}_${e.date}`;
+      if (!grouped[key]) {
+        grouped[key] = {
+          name: e.name,
+          date: e.date,
+          price: e.price || e.fee || 'Free / Standard',
+          slots: []
+        };
+      }
+      grouped[key].slots.push(e.slot);
+    });
+
+    Object.values(grouped).forEach(event => {
+      const firstSlot = event.slots[0].split(' - ')[0];
+      const lastSlot = event.slots[event.slots.length - 1].split(' - ')[1];
+
+      const approvedPlayers = participants.filter(p => p.eventName === event.name && (p.status === 'approved' || p.status === 'accepted'));
+
+      let playersListHtml = '';
+      if (approvedPlayers.length > 0) {
+        playersListHtml = `
+          <div class="mt-4 pt-3 border-t border-white/10 space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-300">Confirmed Participants</span>
+              <span class="text-[10px] bg-green-500/20 text-green-400 font-bold px-2 py-0.5 rounded-full">${approvedPlayers.length} Joined</span>
+            </div>
+            <ul class="space-y-1">
+              ${approvedPlayers.map((p, idx) => `
+                <li class="text-xs text-slate-300 flex items-center gap-2 bg-[#060e18]/50 px-2.5 py-1.5 rounded-lg border border-white/5">
+                  <span class="text-orange-400 font-bold">${idx + 1}.</span>
+                  <span>${p.name}</span>
+                </li>
+              `).join('')}
+            </ul>
+          </div>
+        `;
+      } else {
+        playersListHtml = `
+          <div class="mt-4 pt-3 border-t border-white/10">
+            <span class="text-[11px] text-slate-500 italic">No confirmed participants yet.</span>
+          </div>
+        `;
+      }
+
+      const card = document.createElement('div');
+      card.className = "p-4 bg-[#0b1b2d] border border-orange-500/20 rounded-xl space-y-3";
+      card.innerHTML = `
+        <div>
+          <div class="flex justify-between items-start">
+            <h3 class="text-base font-black text-white">${event.name}</h3>
+            <span class="text-[10px] bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded font-bold">${label}</span>
+          </div>
+          <div class="mt-2 space-y-1">
+            <p class="text-xs text-slate-300 font-semibold">📅 Date: <span class="text-white">${event.date}</span></p>
+            <p class="text-xs text-slate-300 font-semibold">⏰ Time: <span class="text-orange-400 font-bold">${firstSlot} - ${lastSlot}</span></p>
+            <p class="text-xs text-slate-300 font-semibold">💵 Entry Fee: <span class="text-green-400 font-bold">${event.price.startsWith('₱') ? event.price : '₱' + event.price}</span></p>
+          </div>
+        </div>
+
+        <button
+          class="joinEventBtn w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md shadow-orange-500/20 tracking-wider"
+          data-event-name="${escapeAttr(event.name)}"
+          data-event-type="${escapeAttr(typeValue)}"
+          data-event-date="${escapeAttr(event.date)}">
+          JOIN EVENT
+        </button>
+
+        ${playersListHtml}
+      `;
+      container.appendChild(card);
+    });
+
+    // Attach click listeners AFTER the buttons exist in the DOM.
+    // This avoids the inline onclick="..." string-breaking bug that
+    // happens when an event name contains an apostrophe or quote
+    // (e.g. "Beginner's Night") — which is why Open Play buttons
+    // with such names silently failed while simple Tournament
+    // names still worked.
+    container.querySelectorAll('.joinEventBtn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        openModal(
+          btn.dataset.eventName,
+          btn.dataset.eventType,
+          btn.dataset.eventDate
+        );
+      });
+    });
+  }
+
+  // Safely escape a value for use inside an HTML attribute
+  function escapeAttr(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function openModal(eventName, eventType, eventDate) {
+    currentSelectedEventName = eventName;
+    currentSelectedEventType = eventType;
+    currentSelectedEventDate = eventDate;
+    document.getElementById('modalEventTitleDisplay').textContent = `Join: ${eventName}`;
+    document.getElementById('modalEventTitleInput').value = eventName;
+    document.getElementById('emailSubject').value = `New Registration for ${eventName} - PADDLE ZONE`;
+    document.getElementById('joinModal').classList.remove('hidden');
+  }
+
+  function closeModal() {
+    document.getElementById('joinModal').classList.add('hidden');
+  }
+
+  function closeSuccessModal() {
+    document.getElementById('successModal').classList.add('hidden');
+  }
+
+  async function handleModalSubmit(e) {
+    e.preventDefault();
+    const btn = document.getElementById('modalSubmitBtn');
+    btn.disabled = true;
+    btn.innerText = "REGISTERING...";
+
+    const pName = document.getElementById('partName').value;
+    const pEmail = document.getElementById('partEmail').value;
+    const pPhone = document.getElementById('partPhone').value;
+    const pGCash = document.getElementById('partGCash').value;
+
+    const formData = new FormData(e.target);
+
+    try {
+      const response = await fetch("https://api.web3forms.com/submit", {
+        method: "POST",
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        const existingParticipants = JSON.parse(localStorage.getItem('paddle_participants')) || [];
+        existingParticipants.push({
+          id: Date.now(),
+          eventName: currentSelectedEventName,
+          eventType: currentSelectedEventType,
+          eventDate: currentSelectedEventDate,
+          name: pName,
+          email: pEmail,
+          phone: pPhone,
+          gcash: pGCash,
+          status: "pending"
+        });
+        localStorage.setItem('paddle_participants', JSON.stringify(existingParticipants));
+
+        e.target.reset();
+        closeModal();
+        loadPageData();
+        document.getElementById('successModal').classList.remove('hidden');
+      } else {
+        alert("Submission failed: " + result.message);
+      }
+    } catch (err) {
+      alert("An error occurred. Please check your internet connection.");
+    } finally {
+      btn.disabled = false;
+      btn.innerText = "SUBMIT & REGISTER";
+    }
+  }
+
+  window.onload = loadPageData;
+</script>
+</body>
+</html>

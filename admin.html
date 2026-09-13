@@ -1,0 +1,957 @@
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paddle Zone Admin</title>
+
+    <!-- TAILWIND CSS CDN (Kini ang nagahatag sa design ug colors) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- EMAILJS INTEGRATION (v4) -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script type="text/javascript">
+      (function(){
+          emailjs.init({
+            publicKey: "QiePwmn9zb9tsuocl"
+          });
+      })();
+    </script>
+
+    <!-- AUTO-LOGOUT CHECK: Forces login on browser or device close -->
+  <!-- Put this in the <head> of admin.html -->
+  <script>
+    (function checkAdminAuth() {
+      const isAdmin = localStorage.getItem('isAdminLoggedIn');
+      if (isAdmin !== 'true') {
+        window.location.href = 'index.html';
+      }
+    })();
+    </script>
+
+    <!-- FORCES DATE PICKER CALENDAR ICON TO WHITE -->
+    <style>
+      #adminCalendarPicker::-webkit-calendar-picker-indicator {
+        filter: invert(1);
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body class="bg-[#0b1b2d] text-slate-100 font-sans min-h-screen p-4 md:p-8 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#132e4d] via-[#0b1b2d] to-[#060e18] antialiased selection:bg-orange-500 selection:text-white">
+
+    <!-- SECURITY GATEKEEPER MODAL -->
+    <div id="gatekeeper" class="fixed inset-0 bg-[#060e18] z-50 flex items-center justify-center p-4">
+      <div class="bg-[#0b1b2d] border border-orange-500/30 p-8 rounded-2xl max-w-sm w-full text-center space-y-4 shadow-2xl">
+        <div class="text-3xl">🔒</div>
+        <h2 class="text-xl font-black italic tracking-wide">ADMIN ACCESS</h2>
+        <p class="text-xs text-slate-400">Enter security passcode to manage court schedule & events</p>
+        <form onsubmit="handleUnlock(event)" class="space-y-4">
+          <input type="password" id="passInput" placeholder="Passcode" class="w-full p-3 bg-[#060e18] border border-white/10 rounded-xl text-center text-sm font-bold text-white focus:outline-none focus:border-orange-500">
+          <button type="submit" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-black py-3 rounded-xl transition shadow-lg shadow-orange-500/20">
+            UNLOCK DASHBOARD
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- MAIN ADMIN PANEL -->
+    <div id="adminPanel" class="max-w-6xl mx-auto space-y-8 hidden">
+
+      <!-- Header -->
+      <header class="flex justify-between items-center py-4 border-b border-white/10">
+        <div>
+          <h1 class="text-2xl font-black italic">PADDLE ZONE <span class="text-orange-500">ADMIN</span></h1>
+          <p class="text-xs text-slate-400">Court Schedule, Event Approvals & Roster Management</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <a href="index.html" class="text-xs font-bold bg-white/5 border border-white/10 hover:border-orange-500 text-slate-300 px-4 py-2 rounded-xl transition">
+            Exit Dashboard
+          </a>
+          <button onclick="logoutDashboard()" class="text-xs font-bold bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 text-red-400 px-4 py-2 rounded-xl transition">
+            Logout
+          </button>
+        </div>
+      </header>
+
+      <!-- SECTION 1: PENDING COURT BOOKINGS REVIEW (GROUPED MULTI-HOUR) -->
+      <div class="bg-[#060e18]/80 border border-yellow-500/30 p-6 rounded-2xl backdrop-blur-md space-y-4 shadow-xl">
+        <div class="flex justify-between items-center border-b border-white/10 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xl"></span>
+            <h2 class="text-base font-black uppercase text-yellow-400 tracking-wider">Pending Court Booking Requests</h2>
+          </div>
+          <span id="pendingRequestsCount" class="text-xs font-bold bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-full border border-yellow-500/30">0 Pending</span>
+        </div>
+
+        <div id="pendingBookingsFeed" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Grouped multi-hour requests dynamically populated here -->
+        </div>
+      </div>
+
+      <!-- SECTION 2: EVENT PARTICIPANTS APPROVAL TABLES (OPEN PLAY & TOURNAMENT) -->
+      <div class="bg-[#060e18]/80 border border-emerald-500/30 p-6 rounded-2xl backdrop-blur-md space-y-6 shadow-xl">
+        <div class="flex justify-between items-center border-b border-white/10 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xl"></span>
+            <h2 class="text-base font-black uppercase text-emerald-400 tracking-wider">Event Participant Sign-ups (Pending Approval)</h2>
+          </div>
+          <span id="pendingParticipantsCount" class="text-xs font-bold bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/30">0 Pending</span>
+        </div>
+
+        <!-- OPEN PLAY TABLE SECTION -->
+        <div class="space-y-3">
+          <h3 class="text-sm font-black text-orange-400 uppercase tracking-wider flex items-center gap-2">
+            Open Play Sign-ups
+          </h3>
+          <div id="openPlayTableContainer" class="overflow-x-auto">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+
+        <!-- TOURNAMENT TABLE SECTION -->
+        <div class="space-y-3 pt-4 border-t border-white/10">
+          <h3 class="text-sm font-black text-yellow-400 uppercase tracking-wider flex items-center gap-2">
+            Tournament Sign-ups
+          </h3>
+          <div id="tournamentTableContainer" class="overflow-x-auto">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- SECTION 3: ACTIVE ANNOUNCEMENTS & APPROVED ROSTER LIST -->
+      <div class="bg-[#060e18]/80 border border-orange-500/30 p-6 rounded-2xl backdrop-blur-md space-y-4 shadow-xl">
+        <div class="flex justify-between items-center border-b border-white/10 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-xl"></span>
+            <h2 class="text-base font-black uppercase text-orange-400 tracking-wider">Active Events & Confirmed Rosters</h2>
+          </div>
+          <span id="announcementCount" class="text-xs font-bold bg-orange-500/20 text-orange-400 px-3 py-1 rounded-full border border-orange-500/30">0 Posted</span>
+        </div>
+
+        <div id="activeAnnouncementsFeed" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Event Announcements & Accepted Player Lists dynamically populated here -->
+        </div>
+      </div>
+
+      <!-- SECTION 4: COURT CONTROLS & NEW EVENT CREATION -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Court Hourly Rate Setting -->
+  <div class="bg-[#060e18]/80 border border-white/10 p-6 rounded-2xl backdrop-blur-md space-y-4">
+    <h2 class="text-base font-black uppercase text-orange-400 tracking-wider border-b border-white/10 pb-3 flex items-center gap-2">
+      Set Hourly Court Rate
+    </h2>
+    <div class="space-y-3">
+      <label class="block text-xs font-bold uppercase tracking-wider text-slate-300">Base Hourly Rate (PHP)</label>
+      <div class="flex gap-2">
+        <input type="number" id="hourlyRateInput" value="250" class="w-full p-3 bg-[#0b1b2d] border border-white/10 rounded-xl text-sm font-bold text-white focus:outline-none focus:border-orange-500">
+        <button onclick="saveHourlyRate()" class="bg-orange-500 hover:bg-orange-600 text-white font-bold px-6 rounded-xl text-xs transition shadow-md shadow-orange-500/20">
+          SAVE
+        </button>
+      </div>
+    </div>
+  </div>
+
+        <!-- Post New Event Announcement -->
+        <div class="bg-[#060e18]/80 border border-white/10 p-6 rounded-2xl backdrop-blur-md space-y-4">
+          <h2 class="text-base font-black uppercase text-orange-400 tracking-wider border-b border-white/10 pb-3 flex items-center gap-2">
+          Post New Event Announcement
+          </h2>
+          <form onsubmit="postEventAnnouncement(event)" class="space-y-3">
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Event Type</label>
+              <select id="eventType" class="w-full p-3 bg-[#0b1b2d] border border-white/10 rounded-xl text-sm font-bold text-white focus:outline-none focus:border-orange-500">
+                <option value="TOURNAMENT">Tournament</option>
+                <option value="OPEN PLAY">Open Play Session</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Event Title</label>
+              <input type="text" id="eventTitle" placeholder="e.g. Summer Smash Tournament" required class="w-full p-3 bg-[#0b1b2d] border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-orange-500">
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Date</label>
+                <input type="date" id="eventDate" required class="w-full p-3 bg-[#0b1b2d] border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-orange-500">
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Entry Fee (PHP)</label>
+                <input type="text" id="eventFee" placeholder="e.g. ₱300 / player" required class="w-full p-3 bg-[#0b1b2d] border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-orange-500">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Start Time</label>
+                <select id="startTime" class="w-full p-3 bg-[#0b1b2d] border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-orange-500"></select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">End Time</label>
+                <select id="endTime" class="w-full p-3 bg-[#0b1b2d] border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-orange-500"></select>
+              </div>
+            </div>
+
+            <button type="submit" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-black py-3.5 rounded-xl transition shadow-md shadow-orange-500/20 text-xs tracking-wider">
+              PUBLISH ANNOUNCEMENT & BLOCK SLOTS
+            </button>
+          </form>
+        </div>
+
+      </div>
+
+      <!-- SECTION 5: DAILY COURT SCHEDULE CALENDAR GRID -->
+      <div class="bg-[#060e18]/80 border border-white/10 p-6 rounded-2xl backdrop-blur-md space-y-6 shadow-xl">
+        <div class="flex flex-col md:flex-row justify-between md:items-center gap-4 border-b border-white/10 pb-4">
+          <div>
+            <h2 class="text-base font-black uppercase text-orange-400 tracking-wider">📅 Daily Court Schedule Grid</h2>
+            <p class="text-xs text-slate-400">Exact hourly view of available, pending, approved, and tournament-blocked slots</p>
+          </div>
+          <div>
+  <input type="date" id="adminCalendarPicker" onchange="renderScheduleGrid()" class="p-3 bg-[#0b1b2d] border border-orange-500/40 rounded-xl text-sm font-bold text-slate-100 focus:outline-none [&::-webkit-calendar-picker-indicator]:invert">        </div>
+        </div>
+
+        <div id="adminScheduleGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <!-- Hourly slot cards dynamically rendered here -->
+        </div>
+      </div>
+
+    </div>
+
+    <script>
+      const fullDaySlots = [
+        "05:00 AM - 06:00 AM", "06:00 AM - 07:00 AM", "07:00 AM - 08:00 AM",
+        "08:00 AM - 09:00 AM", "09:00 AM - 10:00 AM", "10:00 AM - 11:00 AM",
+        "11:00 AM - 12:00 PM", "12:00 PM - 01:00 PM", "01:00 PM - 02:00 PM",
+        "02:00 PM - 03:00 PM", "03:00 PM - 04:00 PM", "04:00 PM - 05:00 PM",
+        "05:00 PM - 06:00 PM", "06:00 PM - 07:00 PM", "07:00 PM - 08:00 PM",
+        "08:00 PM - 09:00 PM", "09:00 PM - 10:00 PM", "10:00 PM - 11:00 PM",
+        "11:00 PM - 12:00 AM"
+      ];
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const isLoggedIn = localStorage.getItem("paddle_admin_logged_in");
+        if (isLoggedIn === "true") {
+          document.getElementById('gatekeeper').classList.add('hidden');
+          document.getElementById('adminPanel').classList.remove('hidden');
+          initDashboard();
+        }
+      });
+
+      function handleUnlock(e) {
+        if (e) e.preventDefault();
+        unlockDashboard();
+      }
+
+      function unlockDashboard() {
+        const pass = document.getElementById('passInput').value;
+        if (pass === "paddle2026") {
+          localStorage.setItem("paddle_admin_logged_in", "true");
+          document.getElementById('gatekeeper').classList.add('hidden');
+          document.getElementById('adminPanel').classList.remove('hidden');
+          initDashboard();
+        } else {
+          alert("Incorrect Security Passcode!");
+        }
+      }
+
+    function logoutDashboard() {
+    // Clears both persistent login keys
+    localStorage.removeItem("paddle_admin_logged_in");
+    localStorage.removeItem("isAdminLoggedIn");
+    
+    // Resets the input field and toggles the UI back to gatekeeper view
+    if (document.getElementById('passInput')) {
+      document.getElementById('passInput').value = '';
+    }
+    if (document.getElementById('adminPanel')) {
+      document.getElementById('adminPanel').classList.add('hidden');
+    }
+    if (document.getElementById('gatekeeper')) {
+      document.getElementById('gatekeeper').classList.remove('hidden');
+    }
+  }
+
+      function initDashboard() {
+        const currentRate = localStorage.getItem('court_hourly_rate') || localStorage.getItem('paddle_court_rate') || '250';
+        document.getElementById('hourlyRateInput').value = currentRate;
+
+        const startSel = document.getElementById('startTime');
+        const endSel = document.getElementById('endTime');
+        startSel.innerHTML = '';
+        endSel.innerHTML = '';
+
+        fullDaySlots.forEach((slot, idx) => {
+          const startLabel = slot.split(' - ')[0];
+          const endLabel = slot.split(' - ')[1];
+          startSel.innerHTML += `<option value="${idx}">${startLabel}</option>`;
+          endSel.innerHTML += `<option value="${idx}">${endLabel}</option>`;
+        });
+
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('adminCalendarPicker').value = today;
+        document.getElementById('eventDate').value = today;
+
+        refreshAllFeeds();
+      }
+
+      function refreshAllFeeds() {
+        renderGroupedPendingBookings();
+        renderPendingParticipantsTables();
+        renderAnnouncementsFeed();
+        renderScheduleGrid();
+      }
+
+      function saveHourlyRate() {
+        const rateInput = document.getElementById('hourlyRateInput').value;
+
+        if (!rateInput || rateInput <= 0) {
+          alert('Please enter a valid rate.');
+          return;
+        }
+
+        // Saved under both keys so book.html (which checks either) always finds it
+        localStorage.setItem('court_hourly_rate', rateInput);
+        localStorage.setItem('paddle_court_rate', rateInput);
+        alert(`Hourly court rate updated to ₱${rateInput}!`);
+      }
+
+      function postEventAnnouncement(e) {
+        e.preventDefault();
+        const type = document.getElementById('eventType').value;
+        const title = document.getElementById('eventTitle').value;
+        const date = document.getElementById('eventDate').value;
+        const fee = document.getElementById('eventFee').value;
+        const startIdx = parseInt(document.getElementById('startTime').value);
+        const endIdx = parseInt(document.getElementById('endTime').value);
+
+        if (startIdx > endIdx) {
+          alert("Start time must be earlier than or equal to End time!");
+          return;
+        }
+
+        let bookings = JSON.parse(localStorage.getItem('paddle_bookings')) || [];
+
+        for (let i = startIdx; i <= endIdx; i++) {
+          const slot = fullDaySlots[i];
+          bookings = bookings.filter(b => !(b.date === date && b.slot === slot));
+
+          bookings.push({
+            id: Date.now() + Math.random(),
+            date: date,
+            slot: slot,
+            name: title,
+            type: type,
+            price: fee,
+            status: "blocked"
+          });
+        }
+
+        localStorage.setItem('paddle_bookings', JSON.stringify(bookings));
+        alert(`Announcement published: ${title} on ${date}!`);
+
+        document.getElementById('eventTitle').value = '';
+        document.getElementById('eventFee').value = '';
+        refreshAllFeeds();
+      }
+
+      /* ============================================================
+        EMAIL NOTIFICATION — single shared function, used everywhere
+        ============================================================ */
+  async function sendClientNotification(
+    toEmail, 
+    toName, 
+    dateLabel, 
+    timeLabel, 
+    isApproved, 
+    phone = '', 
+    referenceNumber = '', 
+    amountPaid = '', 
+    paymentMethod = 'GCash', 
+    eventType = 'Court Booking'
+  ) {
+    if (!toEmail) return;
+
+    // Determine label for the status line (e.g., "court booking", "open play registration", "tournament registration")
+    let bookingTypeLabel = 'court booking';
+    const typeUpper = (eventType || '').toUpperCase();
+    if (typeUpper.includes('OPEN')) {
+      bookingTypeLabel = 'open play registration';
+    } else if (typeUpper.includes('TOURN') || typeUpper.includes('TOURNAMENT')) {
+      bookingTypeLabel = 'tournament registration';
+    }
+
+    const templateParams = {
+      to_email: toEmail,
+      to_name: toName || 'Valued Customer',
+      date: dateLabel || '',
+      time_slot: timeLabel || '',
+      status: isApproved ? 'APPROVED' : 'REJECTED',
+      status_label: isApproved ? 'Accepted' : 'Declined',
+      booking_type_label: bookingTypeLabel, // <--- Sent to EmailJS template
+      phone: phone || 'N/A',
+      reference_number: referenceNumber || 'N/A',
+      amount_paid: amountPaid || 'N/A',
+      payment_method: paymentMethod || 'GCash',
+      event_type: eventType
+    };
+
+    try {
+      await emailjs.send('service_hq9hsqy', 'template_6wj5kxa', templateParams);
+    } catch (error) {
+      console.error('Email failed:', error);
+    }
+  }
+
+  /* 1. SINGLE APPROVAL FOR MULTI-HOUR COURT BOOKINGS (now emails the client) */
+  function formatSlotRanges(slotsArray) {
+    if (!slotsArray || slotsArray.length === 0) return '';
+
+    const indices = slotsArray
+      .map(s => fullDaySlots.indexOf(s))
+      .filter(i => i !== -1)
+      .sort((a, b) => a - b);
+
+    const ranges = [];
+    let rangeStart = indices[0];
+    let rangeEnd = indices[0];
+
+    for (let i = 1; i < indices.length; i++) {
+      if (indices[i] === rangeEnd + 1) {
+        rangeEnd = indices[i];
+      } else {
+        ranges.push([rangeStart, rangeEnd]);
+        rangeStart = indices[i];
+        rangeEnd = indices[i];
+      }
+    }
+    ranges.push([rangeStart, rangeEnd]);
+
+    return ranges
+      .map(([start, end]) => {
+        const startLabel = fullDaySlots[start].split(' - ')[0];
+        const endLabel = fullDaySlots[end].split(' - ')[1];
+        return `${startLabel} - ${endLabel}`;
+      })
+      .join(', ');
+  }
+
+  function renderGroupedPendingBookings() {
+    const bookings = JSON.parse(localStorage.getItem('paddle_bookings')) || [];
+    const pendingFeed = document.getElementById('pendingBookingsFeed');
+    pendingFeed.innerHTML = '';
+
+    const pendingList = bookings.filter(b => b.status === "pending");
+
+    if (pendingList.length === 0) {
+      document.getElementById('pendingRequestsCount').textContent = "0 Pending";
+      pendingFeed.innerHTML = `<p class="col-span-2 text-xs text-slate-500 italic p-3 bg-[#0b1b2d]/50 rounded-xl border border-white/5">No pending court booking requests right now.</p>`;
+      return;
+    }
+
+    const grouped = {};
+    pendingList.forEach(item => {
+      const key = `${(item.name || '').toLowerCase().trim()}_${item.phone || ''}_${item.date}`;
+      if (!grouped[key]) {
+        grouped[key] = {
+          name: item.name,
+          email: item.email,
+          phone: item.phone,
+          gcash: item.gcash,
+          date: item.date,
+          ids: [],
+          slots: []
+        };
+      }
+      grouped[key].ids.push(item.id);
+      grouped[key].slots.push(item.slot);
+    });
+
+    const groupedArray = Object.values(grouped);
+    document.getElementById('pendingRequestsCount').textContent = `${groupedArray.length} Pending`;
+
+    groupedArray.forEach(group => {
+      const safeTimeRange = formatSlotRanges(group.slots);
+      const idsJson = JSON.stringify(group.ids).replace(/"/g, '&quot;');
+      const safeEmail = (group.email || '').replace(/"/g, '&quot;');
+      const safeName = (group.name || '').replace(/"/g, '&quot;');
+      const safeDate = group.date;
+      const safePhone = (group.phone || '').replace(/"/g, '&quot;');
+      const safeGCash = (group.gcash || '').replace(/"/g, '&quot;');
+      const slotsJson = JSON.stringify(group.slots).replace(/"/g, '&quot;');
+
+      const card = document.createElement('div');
+      card.className = "p-4 bg-[#0b1b2d] border border-yellow-500/30 rounded-xl space-y-3 shadow-md";
+      card.innerHTML = `
+        <div class="flex justify-between items-start">
+          <div>
+            <span class="text-[10px] bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded font-bold uppercase tracking-wider">Pending Booking</span>
+            <h3 class="text-sm font-black text-white mt-1">👤 Client: ${group.name}</h3>
+            <p class="text-xs text-slate-300 font-medium">📅 Date: ${group.date}</p>
+            <p class="text-xs text-orange-400 font-bold">⏰ Reserved Hours: ${safeTimeRange} (${group.slots.length} hrs)</p>
+            ${group.phone ? `<p class="text-xs text-slate-400">📞 Phone: ${group.phone}</p>` : ''}
+            ${group.email ? `<p class="text-xs text-slate-400">✉️ Email: ${group.email}</p>` : `<p class="text-xs text-red-400">⚠️ No email on file — client won't get a notification.</p>`}
+            ${group.gcash ? `<p class="text-xs text-emerald-400 font-mono">💳 Ref No: ${group.gcash}</p>` : ''}
+          </div>
+        </div>
+        <div class="flex gap-2 pt-2 border-t border-white/10">
+          <button onclick="updateGroupedStatus(${idsJson}, 'approved', '${safeEmail}', '${safeName}', '${safeDate}', '${safeTimeRange}', '${safePhone}', '${safeGCash}', ${slotsJson})" class="w-1/2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 rounded-lg text-xs transition shadow">
+            Approve All (${group.slots.length}h) ✅
+          </button>
+          <button onclick="updateGroupedStatus(${idsJson}, 'rejected', '${safeEmail}', '${safeName}', '${safeDate}', '${safeTimeRange}', '${safePhone}', '${safeGCash}', ${slotsJson})" class="w-1/2 bg-red-500 hover:bg-red-600 text-white font-bold py-2 rounded-lg text-xs transition shadow">
+            Reject ❌
+          </button>
+        </div>
+      `;
+      pendingFeed.appendChild(card);
+    });
+  }
+
+  async function updateGroupedStatus(idsArray, newStatus, email, name, dateLabel, timeLabel, phone = '', gcash = '', slotsArray = []) {
+    let bookings = JSON.parse(localStorage.getItem('paddle_bookings')) || [];
+    bookings = bookings.map(b => idsArray.includes(b.id) ? { ...b, status: newStatus } : b);
+    localStorage.setItem('paddle_bookings', JSON.stringify(bookings));
+    refreshAllFeeds();
+
+    // Calculate rate and total amount based on hours selected
+    const ratePerHour = parseFloat(localStorage.getItem('court_hourly_rate') || localStorage.getItem('paddle_court_rate') || '250');
+    const totalHours = Array.isArray(slotsArray) && slotsArray.length > 0 ? slotsArray.length : 1;
+    const totalAmount = `₱${totalHours * ratePerHour}`;
+
+    // Email the client right after updating status with all parameters mapped
+    await sendClientNotification(
+      email, 
+      name, 
+      dateLabel, 
+      timeLabel, 
+      newStatus === 'approved', 
+      phone, 
+      gcash, 
+      totalAmount, 
+      'GCash', 
+      'Court Booking'
+    );
+  }
+
+  /* 2. EVENT PARTICIPANTS APPROVAL TABLES (OPEN PLAY & TOURNAMENT) — now emails the client */
+  function renderPendingParticipantsTables() {
+    const participants = JSON.parse(localStorage.getItem('paddle_participants')) || [];
+    const pendingList = participants.filter(p => !p.status || p.status === 'pending');
+    document.getElementById('pendingParticipantsCount').textContent = `${pendingList.length} Pending`;
+
+    const openPlayContainer = document.getElementById('openPlayTableContainer');
+    const tournamentContainer = document.getElementById('tournamentTableContainer');
+
+    const openPlayList = pendingList.filter(p => (p.eventType || '').toUpperCase() === 'OPEN PLAY' || (p.eventType || '').toUpperCase() === 'OPENPLAY');
+    const tournamentList = pendingList.filter(p => (p.eventType || '').toUpperCase() === 'TOURNAMENT' || !(p.eventType));
+
+    openPlayContainer.innerHTML = buildParticipantTableHtml(openPlayList, "Open Play");
+    tournamentContainer.innerHTML = buildParticipantTableHtml(tournamentList, "Tournament");
+  }
+
+  function buildParticipantTableHtml(items, categoryName) {
+    if (items.length === 0) {
+      return `<p class="text-xs text-slate-500 italic p-3 bg-[#0b1b2d]/50 rounded-xl border border-white/5">No pending ${categoryName} requests.</p>`;
+    }
+
+    const grouped = {};
+    items.forEach(p => {
+      const title = p.eventName || 'General Registration';
+      if (!grouped[title]) grouped[title] = [];
+      grouped[title].push(p);
+    });
+
+    let html = '';
+    for (const [title, rows] of Object.entries(grouped)) {
+      html += `
+        <div class="mb-4 bg-[#0b1b2d] border border-white/10 rounded-xl overflow-hidden">
+          <div class="bg-white/5 px-4 py-2 border-b border-white/10">
+            <span class="text-xs font-black uppercase tracking-wider text-slate-300">TITLE: <span class="text-white">${title}</span></span>
+          </div>
+          <table class="w-full text-left text-xs text-slate-300">
+            <thead class="bg-[#060e18]/60 text-slate-400 uppercase font-bold border-b border-white/10">
+              <tr>
+                <th class="p-3">Name</th>
+                <th class="p-3">Contact Number</th>
+                <th class="p-3">Email</th>
+                <th class="p-3">GCash Ref</th>
+                <th class="p-3 text-center">Accept / Decline</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-white/5">
+              ${rows.map(item => `
+                <tr class="hover:bg-white/5 transition">
+                  <td class="p-3 font-bold text-white">${item.name}</td>
+                  <td class="p-3 text-slate-300">${item.phone || 'N/A'}</td>
+                  <td class="p-3 text-slate-300">${item.email || '<span class="text-red-400">missing</span>'}</td>
+                  <td class="p-3 font-mono text-emerald-400">${item.gcash || 'N/A'}</td>
+                  <td class="p-3 text-center">
+                    <div class="flex justify-center gap-2">
+                      <button onclick="approveParticipant(${item.id})" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-3 py-1 rounded transition text-[11px]">
+                        Accept ✅
+                      </button>
+                      <button onclick="rejectParticipant(${item.id})" class="bg-red-500 hover:bg-red-600 text-white font-bold px-3 py-1 rounded transition text-[11px]">
+                        Decline ❌
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+    return html;
+  }
+
+  /* ---------------------------------------------------------
+    Shared helper — finds the matching booking slot(s) for an
+    event so we can build the correct time range + fee for the
+    receipt email. Matching is now case-insensitive and trims
+    whitespace, since small differences like "Open Play" vs
+    "OPEN PLAY " (trailing space) were silently causing zero
+    matches -> "Time TBA" / "₱0" on the receipt.
+  --------------------------------------------------------- */
+  function normalize(str) {
+    return String(str ?? '').trim().toUpperCase();
+  }
+
+  function resolveEventTimeAndFee(target) {
+    const bookings = JSON.parse(localStorage.getItem('paddle_bookings')) || [];
+
+    const targetName = normalize(target.eventName);
+    const targetType = normalize(target.eventType);
+    const targetDate = normalize(target.eventDate);
+
+    // 1st try: exact match by name + date + type (most accurate)
+    let eventSlots = bookings.filter(b =>
+      normalize(b.name) === targetName &&
+      normalize(b.date) === targetDate &&
+      (normalize(b.type) === targetType || b.status === 'blocked')
+    );
+
+    // 2nd try: no date on record (old participant, or date format mismatch)
+    // — match by name + type only
+    if (eventSlots.length === 0) {
+      eventSlots = bookings.filter(b =>
+        normalize(b.name) === targetName &&
+        (normalize(b.type) === targetType || b.status === 'blocked')
+      );
+    }
+
+    // 3rd try: match by name only, in case type label differs
+    // (e.g. "OPEN PLAY" vs "OPENPLAY")
+    if (eventSlots.length === 0) {
+      eventSlots = bookings.filter(b => normalize(b.name) === targetName);
+    }
+
+    let eventTime = target.eventTime || 'Time TBA';
+    let eventFee = target.fee || '₱0';
+
+    if (eventSlots.length > 0) {
+    const sortedSlots = eventSlots
+    .map(b => b.slot)
+    .filter(Boolean)
+    .sort((a, b) => fullDaySlots.indexOf(a) - fullDaySlots.indexOf(b));
+
+      if (sortedSlots.length > 0) {
+        const firstSlot = sortedSlots[0].split(' - ')[0];
+        const lastSlot = sortedSlots[sortedSlots.length - 1].split(' - ')[1];
+        eventTime = `${firstSlot} - ${lastSlot}`;
+      }
+
+      const feeSource = eventSlots.find(b => b.price || b.fee);
+      if (feeSource) {
+        eventFee = feeSource.price || feeSource.fee;
+      }
+
+      // Use the actual matched date too, in case target.eventDate was blank
+      if (!target.eventDate && eventSlots[0].date) {
+        target.eventDate = eventSlots[0].date;
+      }
+    }
+
+    return { eventTime, eventFee };
+  }
+
+  async function approveParticipant(participantId) {
+    let participants = JSON.parse(localStorage.getItem('paddle_participants')) || [];
+    let target = null;
+
+    participants = participants.map(p => {
+      if (p.id === participantId) { target = { ...p, status: 'approved' }; return target; }
+      return p;
+    });
+    localStorage.setItem('paddle_participants', JSON.stringify(participants));
+    refreshAllFeeds();
+
+    if (target) {
+      const { eventTime, eventFee } = resolveEventTimeAndFee(target);
+
+      await sendClientNotification(
+        target.email,
+        target.name,
+        target.eventDate || '',
+        eventTime,
+        true,
+        target.phone || '',
+        target.gcash || '',
+        eventFee,
+        'GCash',
+        target.eventType || 'Event'
+      );
+    }
+  }
+
+  async function rejectParticipant(participantId) {
+    let participants = JSON.parse(localStorage.getItem('paddle_participants')) || [];
+    const target = participants.find(p => p.id === participantId);
+
+    participants = participants.filter(p => p.id !== participantId);
+    localStorage.setItem('paddle_participants', JSON.stringify(participants));
+    refreshAllFeeds();
+
+    if (target) {
+      const { eventTime, eventFee } = resolveEventTimeAndFee(target);
+
+      await sendClientNotification(
+        target.email,
+        target.name,
+        target.eventDate || '',
+        eventTime,
+        false,
+        target.phone || '',
+        target.gcash || '',
+        eventFee,
+        'GCash',
+        target.eventType || 'Event'
+      );
+    }
+  }
+
+
+      /* 3. ANNOUNCEMENTS FEED & APPROVED ROSTERS */
+      function renderAnnouncementsFeed() {
+        const bookings = JSON.parse(localStorage.getItem('paddle_bookings')) || [];
+        const participants = JSON.parse(localStorage.getItem('paddle_participants')) || [];
+        const feed = document.getElementById('activeAnnouncementsFeed');
+        feed.innerHTML = '';
+
+        const blockedEvents = bookings.filter(b => b.status === "blocked");
+
+        if (blockedEvents.length === 0) {
+          feed.innerHTML = `<p class="col-span-2 text-xs text-slate-500 italic p-3 bg-[#0b1b2d]/50 rounded-xl border border-white/5">No active event announcements posted.</p>`;
+          document.getElementById('announcementCount').textContent = '0 Posted';
+          return;
+        }
+
+        const grouped = {};
+        blockedEvents.forEach(e => {
+          const key = `${e.name}_${e.date}_${e.type}`;
+          if (!grouped[key]) {
+            grouped[key] = { name: e.name, date: e.date, type: e.type, price: e.price || '₱250', slots: [] };
+          }
+          grouped[key].slots.push(e.slot);
+        });
+
+        const eventList = Object.values(grouped);
+        document.getElementById('announcementCount').textContent = `${eventList.length} Active`;
+
+        eventList.forEach(event => {
+          const firstSlot = event.slots[0].split(' - ')[0];
+          const lastSlot = event.slots[event.slots.length - 1].split(' - ')[1];
+
+          const approvedPeople = participants.filter(p => p.eventName === event.name && (p.status === 'approved' || p.status === 'accepted'));
+
+          let rosterHtml = '';
+          if (approvedPeople.length === 0) {
+            rosterHtml = `<p class="text-[11px] text-slate-500 italic">No approved participants on roster yet.</p>`;
+          } else {
+            rosterHtml = approvedPeople.map((p, idx) => `
+              <div class="flex justify-between items-center text-[11px] bg-[#060e18] p-2 rounded-lg border border-white/5">
+                <span class="font-bold text-white">${idx + 1}. ${p.name} (${p.phone || 'N/A'})</span>
+                <span class="text-orange-400 font-mono">Ref: ${p.gcash || 'N/A'}</span>
+              </div>
+            `).join('');
+          }
+
+          const safeEventName = event.name.replace(/'/g, "\\'");
+          const safeEventDate = event.date.replace(/'/g, "\\'");
+
+          const card = document.createElement('div');
+          card.className = "p-4 bg-[#0b1b2d] border border-orange-500/20 rounded-xl space-y-3 shadow-md";
+          card.innerHTML = `
+            <div class="flex justify-between items-start">
+              <div>
+                <span class="text-[10px] bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded font-bold uppercase">${event.type}</span>
+                <h3 class="text-sm font-black text-white mt-1">${event.name}</h3>
+                <p class="text-xs text-slate-300">📅 ${event.date} | ⏰ ${firstSlot} - ${lastSlot}</p>
+                <p class="text-xs text-emerald-400 font-bold">💵 Fee: ${event.price.startsWith('₱') ? event.price : '₱' + event.price}</p>
+              </div>
+              <button onclick="deleteAnnouncement('${safeEventName}', '${safeEventDate}')" class="text-xs text-red-400 hover:text-red-300 font-bold bg-red-500/10 border border-red-500/20 px-2 py-1 rounded-lg transition">
+                Delete 🗑️
+              </button>
+            </div>
+
+            <div class="space-y-1 border-t border-white/10 pt-2">
+              <p class="text-[11px] font-bold text-slate-300">Confirmed Roster (${approvedPeople.length}):</p>
+              <div class="space-y-1 max-h-32 overflow-y-auto pr-1">
+                ${rosterHtml}
+              </div>
+            </div>
+          `;
+          feed.appendChild(card);
+        });
+      }
+
+      function deleteAnnouncement(eventName, eventDate) {
+        if (!confirm(`Are you sure you want to delete "${eventName}" and free up those court hours?`)) return;
+
+        let bookings = JSON.parse(localStorage.getItem('paddle_bookings')) || [];
+        bookings = bookings.filter(b => !(b.name === eventName && b.date === eventDate));
+
+        localStorage.setItem('paddle_bookings', JSON.stringify(bookings));
+        refreshAllFeeds();
+      }
+
+  /* 4. DAILY CALENDAR GRID */
+  function renderScheduleGrid() {
+    const selectedDate = document.getElementById('adminCalendarPicker').value;
+    const bookings = JSON.parse(localStorage.getItem('paddle_bookings')) || [];
+    const grid = document.getElementById('adminScheduleGrid');
+    grid.innerHTML = '';
+
+    const dateBookings = bookings.filter(b => b.date === selectedDate);
+
+    let controlsContainer = document.getElementById('gridControlsContainer');
+    if (!controlsContainer) {
+      controlsContainer = document.createElement('div');
+      controlsContainer.id = 'gridControlsContainer';
+      grid.parentNode.insertBefore(controlsContainer, grid);
+    }
+
+    controlsContainer.className = "flex flex-wrap items-center justify-between gap-3 mb-4 p-3 bg-[#0b1b2d]/80 border border-white/10 rounded-xl";
+    controlsContainer.innerHTML = `
+      <div class="flex items-center gap-2">
+        <input type="checkbox" id="selectAllGridSlots" onchange="toggleSelectAllGridSlots(this)" class="w-4 h-4 rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-emerald-500 cursor-pointer">
+        <label for="selectAllGridSlots" class="text-xs font-bold text-slate-300 cursor-pointer select-none">Select All Booked</label>
+      </div>
+      <button onclick="deleteSelectedGridSlots()" class="flex items-center gap-1.5 bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/30 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow">
+        <span>🗑️ Delete Selected</span>
+      </button>
+    `;
+
+    fullDaySlots.forEach(slot => {
+      const match = dateBookings.find(b => b.slot === slot);
+      const card = document.createElement('div');
+
+      if (!match) {
+        card.className = "p-3 bg-[#0b1b2d]/60 border border-white/5 rounded-xl text-xs flex justify-between items-center";
+        card.innerHTML = `
+          <div>
+            <p class="font-bold text-slate-300">${slot}</p>
+            <p class="text-[10px] text-emerald-400 font-semibold">Available Slot</p>
+          </div>
+          <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-1 rounded font-bold">OPEN</span>
+        `;
+      } else {
+        let bgStyle = "bg-slate-700/60 border-slate-500/40";
+        let textStyle = "text-slate-200";
+        let statusLabel = "CONFIRMED";
+        let statusBadge = "bg-slate-500/30 text-slate-200 border-slate-400/30";
+
+        if (match.status === "blocked") {
+          bgStyle = "bg-red-950/30 border-red-500/30";
+          textStyle = "text-red-400";
+          statusLabel = match.type || 'BLOCKED';
+          statusBadge = "bg-red-500/20 text-red-300";
+        } else if (match.status === "pending") {
+          bgStyle = "bg-yellow-950/30 border-yellow-500/30";
+          textStyle = "text-yellow-400";
+          statusLabel = "PENDING";
+          statusBadge = "bg-yellow-500/20 text-yellow-300";
+        }
+
+        card.className = `p-3 ${bgStyle} border rounded-xl text-xs space-y-2 shadow-sm relative`;
+        card.innerHTML = `
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex items-start gap-2 min-w-0">
+              <input type="checkbox" data-booking-id="${match.id}" class="grid-slot-checkbox mt-0.5 w-4 h-4 rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-emerald-500 cursor-pointer shrink-0">
+              <div class="min-w-0">
+                <p class="font-bold ${textStyle}">${slot}</p>
+              </div>
+            </div>
+            <span class="text-[10px] ${statusBadge} border px-2 py-0.5 rounded font-bold uppercase shrink-0">${statusLabel}</span>
+          </div>
+
+          <div class="flex items-center justify-between gap-2 pt-1 border-t border-white/5">
+            <p class="text-xs font-black text-white truncate min-w-0 flex-1">${match.status === 'blocked' ? '🚫' : '👤'} ${match.name}</p>
+            <button onclick="cancelBookingById(${match.id})" title="Cancel Booking" class="text-slate-400 hover:text-red-400 text-xs transition p-0.5 shrink-0 ml-auto">
+              🗑️
+            </button>
+          </div>
+        `;
+      }
+
+      grid.appendChild(card);
+    });
+  }
+
+  /* ---------------------------------------------------------
+    5. SELECT ALL — checks/unchecks every visible booking box
+  --------------------------------------------------------- */
+  function toggleSelectAllGridSlots(masterCheckbox) {
+    const checkboxes = document.querySelectorAll('.grid-slot-checkbox');
+    checkboxes.forEach(cb => {
+      cb.checked = masterCheckbox.checked;
+    });
+  }
+
+  /* ---------------------------------------------------------
+    6. DELETE SELECTED — removes every checked booking
+    (works whether checked one-by-one OR via Select All)
+  --------------------------------------------------------- */
+  function deleteSelectedGridSlots() {
+    const checkedBoxes = document.querySelectorAll('.grid-slot-checkbox:checked');
+
+    if (checkedBoxes.length === 0) {
+      alert('No bookings selected. Please check at least one booking first.');
+      return;
+    }
+
+    const confirmMsg = checkedBoxes.length === 1
+      ? 'Cancel this booking?'
+      : `Cancel ${checkedBoxes.length} selected bookings?`;
+
+    if (!confirm(confirmMsg)) return;
+
+    // data-booking-id comes out of the DOM as a string, so compare as strings
+    const idsToDelete = Array.from(checkedBoxes).map(cb => cb.dataset.bookingId);
+
+    let bookings = JSON.parse(localStorage.getItem('paddle_bookings')) || [];
+    bookings = bookings.filter(b => !idsToDelete.includes(String(b.id)));
+    localStorage.setItem('paddle_bookings', JSON.stringify(bookings));
+
+    renderScheduleGrid(); // refresh the grid + uncheck "Select All"
+  }
+
+  /* ---------------------------------------------------------
+    7. CANCEL SINGLE BOOKING — trash icon on one card only
+    (does NOT touch any other booking, even if others are checked)
+  --------------------------------------------------------- */
+  function cancelBookingById(id) {
+    if (!confirm('Cancel this booking?')) return;
+
+    let bookings = JSON.parse(localStorage.getItem('paddle_bookings')) || [];
+    bookings = bookings.filter(b => b.id !== id);
+    localStorage.setItem('paddle_bookings', JSON.stringify(bookings));
+
+    renderScheduleGrid();
+  }
+    </script>
+    
+  </body>
+  </html>

@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Book Court - PADDLE ZONE</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .slot-booked {
+      background-color: rgba(15, 23, 42, 0.6) !important;
+      border-color: rgba(51, 65, 85, 0.4) !important;
+      color: #475569 !important;
+      cursor: not-allowed !important;
+      text-decoration: line-through;
+    }
+    .slot-pending {
+      background-color: rgba(234, 179, 8, 0.15) !important;
+      border-color: rgba(234, 179, 8, 0.5) !important;
+      color: #fde047 !important;
+      cursor: not-allowed !important;
+    }
+    .slot-blocked {
+      background-color: rgba(239, 68, 68, 0.15) !important;
+      border-color: rgba(239, 68, 68, 0.4) !important;
+      color: #fca5a5 !important;
+      cursor: not-allowed !important;
+    }
+    /* Makes native browser calendar picker icon white */
+    ::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body class="bg-[#0b1b2d] text-slate-100 font-sans min-h-screen p-4 md:p-8 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#132e4d] via-[#0b1b2d] to-[#060e18] antialiased selection:bg-orange-500 selection:text-white">
+
+  <div id="successModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+    <div class="bg-[#0b1b2d] border border-orange-500/30 max-w-md w-full p-6 rounded-2xl text-center space-y-4 shadow-2xl">
+      <div class="w-16 h-16 bg-orange-500/10 text-orange-500 rounded-full flex items-center justify-center mx-auto text-3xl font-black">
+        ✓
+      </div>
+      <h2 class="text-xl font-black text-white">Booking Submitted!</h2>
+      <p class="text-sm text-slate-300">
+        Thank you for choosing Paddle Zone! Please check your email for booking confirmation.
+      </p>
+      <button onclick="closeModalAndRedirect()" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-xl transition">
+        Got it!
+      </button>
+    </div>
+  </div>
+
+  <header class="max-w-xl mx-auto flex justify-between items-center py-6">
+    <h1 class="text-3xl font-black italic tracking-italic drop-shadow-sm">
+      <span class="text-white">BOOK</span> <span class="text-orange-500">COURT</span>
+    </h1>
+    <a href="index.html" class="text-xs font-bold text-slate-400 hover:text-orange-400 transition uppercase tracking-wider">← Back</a>
+  </header>
+
+  <main class="max-w-xl mx-auto space-y-6">
+    
+    <p class="text-sm text-slate-300">Rate: <span class="text-orange-500 font-black" id="rateDisplay">₱250 / hour</span></p>
+
+    <form id="bookingForm" onsubmit="handleFormSubmit(event)" class="space-y-6">
+      
+      <input type="hidden" name="access_key" value="9486301b-5180-4a44-9722-d0f8a1035f28">
+      <input type="hidden" name="subject" value="New Court Booking Request - PADDLE ZONE">
+      <input type="hidden" name="from_name" value="Paddle Zone Website">
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Full Name</label>
+          <input type="text" name="Full Name" id="custName" required placeholder="e.g. Juan Dela Cruz" class="w-full p-3.5 bg-[#060e18]/80 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-orange-500 text-slate-100 placeholder-slate-500 backdrop-blur-md transition">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Email Address</label>
+          <input type="email" name="Email" id="custEmail" required placeholder="name@example.com" class="w-full p-3.5 bg-[#060e18]/80 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-orange-500 text-slate-100 placeholder-slate-500 backdrop-blur-md transition">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Phone Number (GCash)</label>
+          <input type="tel" name="GCash Phone Number" id="custPhone" required placeholder="09123456789" pattern="[0-9]{11}" class="w-full p-3.5 bg-[#060e18]/80 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-orange-500 text-slate-100 placeholder-slate-500 backdrop-blur-md transition">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">Select Booking Date</label>
+        <input type="date" name="Booking Date" id="bookDate" onchange="loadAvailableSlots()" required class="w-full p-3.5 bg-[#060e18]/80 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-orange-500 text-slate-100 backdrop-blur-md transition">
+      </div>
+
+      <div>
+        <div class="flex justify-between items-center mb-2">
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-300">Select Time Slots (Choose multiple)</label>
+          <span class="text-[11px] text-orange-400 font-semibold" id="slotCountDisplay">0 hours selected</span>
+        </div>
+        <div id="timeSlotsGrid" class="grid grid-cols-2 gap-2 text-xs font-semibold">
+        </div>
+        <div class="flex flex-wrap gap-4 text-[10px] text-slate-400 mt-2">
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-slate-600 inline-block"></span> Booked</span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-yellow-400 inline-block"></span> Pending</span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span> Tournament / Open Play</span>
+        </div>
+      </div>
+
+      <div class="p-4 bg-[#060e18]/60 backdrop-blur-md rounded-2xl border border-white/10 text-xs space-y-1">
+  <div class="flex justify-between font-black text-sm text-slate-200">
+    <span>Total Amount:</span>
+    <span class="text-orange-500 font-black">₱<span id="totalDisplay">0</span></span>
+  </div>
+  <p class="text-slate-400 mt-1">Send GCash to: <strong class="text-white">09926346030 || AL***E A.</strong></p>
+
+  <!-- GCash QR Code -->
+  <div class="flex flex-col items-center pt-3">
+    <img src="pic4.jpg" alt="GCash QR Code" class="w-40 h-40 object-contain rounded-xl border border-white/10 bg-white p-2">
+    <p class="text-slate-500 text-[10px] mt-2">Scan to pay via GCash</p>
+  </div>
+</div>
+
+      
+
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1">GCash Reference Number</label>
+        <input type="text" name="GCash Ref Number" id="gcashRef" required placeholder="e.g. 1002 345 678 901" pattern="[0-9\s]{13,16}" maxlength="16" class="w-full p-3.5 bg-[#060e18]/80 border border-white/10 rounded-xl text-sm focus:outline-none focus:border-orange-500 text-slate-100 placeholder-slate-500 backdrop-blur-md transition">
+        <p class="text-[10px] text-slate-400 mt-1">* Enter the 13-digit reference number from your GCash receipt.</p>
+      </div>
+
+      <div class="p-4 rounded-2xl border border-white/5 bg-[#060e18]/40 space-y-2 text-xs text-slate-300">
+  <h3 class="font-black text-orange-400 uppercase tracking-wider flex items-center gap-1.5">Court Terms & Rules</h3>
+  <ul class="list-disc list-inside space-y-1 text-slate-400">
+    <li><strong>Payment:</strong> Payment or deposit confirms the booking.</li>
+    <li><strong>Cancellation:</strong> Cancel 1 day ahead for a full refund.</li>
+    <li><strong>Late Cancellation:</strong> Late cancellations may forfeit the deposit.</li>
+    <li><strong>No-Show:</strong> No-shows forfeit payment in full.</li>
+    <li><strong>Unpaid Bookings:</strong> Unpaid bookings expire automatically.</li>
+  </ul>
+</div>
+
+      <button type="submit" id="submitBtn" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-black py-4 rounded-xl hover:opacity-95 transition transform active:scale-95 shadow-[0_10px_25px_rgba(242,101,34,0.35)] border border-white/20 tracking-wider">
+        SUBMIT FOR APPROVAL
+      </button>
+
+    </form>
+  </main>
+
+  <script>
+  const timeSlots = [
+    "05:00 AM - 06:00 AM", "06:00 AM - 07:00 AM", "07:00 AM - 08:00 AM",
+    "08:00 AM - 09:00 AM", "09:00 AM - 10:00 AM", "10:00 AM - 11:00 AM",
+    "11:00 AM - 12:00 PM", "12:00 PM - 01:00 PM", "01:00 PM - 02:00 PM",
+    "02:00 PM - 03:00 PM", "03:00 PM - 04:00 PM", "04:00 PM - 05:00 PM",
+    "05:00 PM - 06:00 PM", "06:00 PM - 07:00 PM", "07:00 PM - 08:00 PM",
+    "08:00 PM - 09:00 PM", "09:00 PM - 10:00 PM", "11:00 PM - 12:00 AM"
+  ];
+
+  let selectedSlots = [];
+
+  function getHourlyRate() {
+    return parseFloat(localStorage.getItem('court_hourly_rate') || localStorage.getItem('paddle_court_rate') || '250');
+  }
+
+  function updateRateDisplay() {
+    const currentRate = getHourlyRate();
+    document.getElementById('rateDisplay').textContent = `₱${currentRate} / hour`;
+  }
+
+  document.getElementById('bookDate').min = new Date().toISOString().split('T')[0];
+  updateRateDisplay();
+
+  function loadAvailableSlots() {
+    updateRateDisplay();
+    const chosenDate = document.getElementById('bookDate').value;
+    const grid = document.getElementById('timeSlotsGrid');
+    grid.innerHTML = '';
+    selectedSlots = [];
+    updateTotalDisplay();
+
+    if (!chosenDate) {
+      grid.innerHTML = '<p class="col-span-2 text-slate-500 text-center py-2">Please select a date first.</p>';
+      return;
+    }
+
+    const storedBookings = JSON.parse(localStorage.getItem('paddle_bookings')) || [];
+
+    timeSlots.forEach(slot => {
+      const match = storedBookings.find(b => b.date === chosenDate && b.slot === slot);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+
+      if (match) {
+        if (match.status === 'blocked') {
+          btn.innerText = `${slot} (${match.type || 'Event'})`;
+          btn.className = 'slot-blocked p-3 rounded-xl border text-center font-bold text-[11px]';
+          btn.disabled = true;
+        } else if (match.status === 'approved' || match.status === 'accepted') {
+          btn.innerText = `${slot} (Booked)`;
+          btn.className = 'slot-booked p-3 rounded-xl border text-center font-bold text-[11px]';
+          btn.disabled = true;
+        } else if (match.status === 'pending') {
+          btn.innerText = `${slot} (Pending)`;
+          btn.className = 'slot-pending p-3 rounded-xl border text-center font-bold text-[11px]';
+          btn.disabled = true;
+        } else if (match.status === 'rejected') {
+          btn.innerText = slot;
+          btn.className = 'slot-btn p-3 rounded-xl border border-white/10 bg-[#060e18]/60 hover:border-orange-500 text-slate-200 transition text-center';
+          btn.onclick = () => toggleTimeSlot(btn, slot);
+        }
+      } else {
+        btn.innerText = slot;
+        btn.className = 'slot-btn p-3 rounded-xl border border-white/10 bg-[#060e18]/60 hover:border-orange-500 text-slate-200 transition text-center';
+        btn.onclick = () => toggleTimeSlot(btn, slot);
+      }
+
+      grid.appendChild(btn);
+    });
+  }
+
+  function toggleTimeSlot(button, slot) {
+    const index = selectedSlots.indexOf(slot);
+
+    if (index > -1) {
+      selectedSlots.splice(index, 1);
+      button.classList.remove('border-orange-500', 'bg-orange-500/20', 'text-orange-400');
+      button.classList.add('border-white/10', 'bg-[#060e18]/60', 'text-slate-200');
+    } else {
+      selectedSlots.push(slot);
+      button.classList.remove('border-white/10', 'bg-[#060e18]/60', 'text-slate-200');
+      button.classList.add('border-orange-500', 'bg-orange-500/20', 'text-orange-400');
+    }
+
+    updateTotalDisplay();
+  }
+
+  function updateTotalDisplay() {
+    const currentRate = getHourlyRate();
+    const count = selectedSlots.length;
+    const total = count * currentRate;
+    
+    document.getElementById('slotCountDisplay').textContent = `${count} hour${count !== 1 ? 's' : ''} selected`;
+    document.getElementById('totalDisplay').textContent = total.toLocaleString();
+  }
+
+  async function handleFormSubmit(e) {
+    e.preventDefault();
+
+    if (selectedSlots.length === 0) {
+      alert("Please select at least one available time slot!");
+      return;
+    }
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerText = "SUBMITTING...";
+
+    const currentRate = getHourlyRate();
+    const chosenDate = document.getElementById('bookDate').value;
+    const custName = document.getElementById('custName').value;
+    const custEmail = document.getElementById('custEmail').value;
+    const custPhone = document.getElementById('custPhone').value;
+    const gcashRef = document.getElementById('gcashRef').value;
+
+    const formData = new FormData(e.target);
+    formData.append("Selected Time Slots", selectedSlots.join(', '));
+    formData.append("Total Amount", `₱${selectedSlots.length * currentRate}`);
+    formData.append("Status", "Pending Admin Acceptance");
+
+    formData.append("email", custEmail);
+    formData.append("replyto", custEmail);
+
+    try {
+      const response = await fetch("https://api.web3forms.com/submit", {
+        method: "POST",
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        const existingBookings = JSON.parse(localStorage.getItem('paddle_bookings')) || [];
+
+        selectedSlots.forEach(s => {
+          existingBookings.push({
+            id: Date.now() + Math.random(),
+            date: chosenDate,
+            slot: s,
+            name: custName,
+            email: custEmail,
+            phone: custPhone,
+            gcash: gcashRef,
+            price: `₱${currentRate}`,
+            status: "pending"
+          });
+        });
+
+        localStorage.setItem('paddle_bookings', JSON.stringify(existingBookings));
+
+        document.getElementById('successModal').classList.remove('hidden');
+        e.target.reset();
+        selectedSlots = [];
+        loadAvailableSlots();
+      } else {
+        alert("Submission failed: " + result.message);
+      }
+    } catch (err) {
+      alert("An error occurred. Please try again.");
+    } finally {
+      btn.disabled = false;
+      btn.innerText = "SUBMIT FOR APPROVAL";
+    }
+  }
+
+  function closeModalAndRedirect() {
+    window.location.href = "index.html";
+  }
+
+  loadAvailableSlots();
+  </script>
+</body>
+</html>
