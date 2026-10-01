@@ -11,14 +11,15 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // 1. Replace with your actual Firebase project configuration
+    // Same Firebase project used by index.html / book.html / admin.html / tournaments.html
     const firebaseConfig = {
-      apiKey: "YOUR_FIREBASE_API_KEY",
-      authDomain: "YOUR_PROJECT.firebaseapp.com",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_PROJECT.appspot.com",
-      messagingSenderId: "YOUR_SENDER_ID",
-      appId: "YOUR_APP_ID"
+      apiKey: "AIzaSyA0OEGdokt8Rg3jd5BADrF87h2oV7pCWVQ",
+      authDomain: "paddle-zone.firebaseapp.com",
+      projectId: "paddle-zone",
+      storageBucket: "paddle-zone.firebasestorage.app",
+      messagingSenderId: "424632582751",
+      appId: "1:424632582751:web:449a065c4fc3f72b5491ea",
+      measurementId: "G-B10VH2JGB7"
     };
 
     // Initialize Firebase
@@ -55,32 +56,41 @@
 
         const bookingData = bookingSnap.data();
 
+        // NOTE: bookings written by book.html/admin.html use lowercase
+        // status values: "pending", "approved", "rejected", "blocked".
+        // This page now matches that convention instead of ACCEPTED/REJECTED.
+
         // Prevent updating if already processed
-        if (bookingData.status === "ACCEPTED" || bookingData.status === "REJECTED") {
+        if (bookingData.status === "approved" || bookingData.status === "rejected") {
           statusTitle.innerText = "Already Processed";
-          statusText.innerText = `This booking was already set to ${bookingData.status}.`;
+          statusText.innerText = `This booking was already set to ${bookingData.status.toUpperCase()}.`;
           iconContainer.innerHTML = `<span class="text-yellow-500 text-3xl font-bold">!</span>`;
           return;
         }
 
         // Determine new status based on email link action
         const isAccept = action.toLowerCase() === 'accept';
-        const newStatus = isAccept ? 'ACCEPTED' : 'REJECTED';
+        const newStatus = isAccept ? 'approved' : 'rejected';
 
-        // 2. Update status field in Firebase Firestore
+        // Update status field in Firebase Firestore
         await updateDoc(bookingRef, {
           status: newStatus,
           updatedAt: new Date().toISOString()
         });
 
-        // 3. Display success response to Admin
+        // Display success response to Admin.
+        // Booking docs use "name", "date", "slot" (not guestName/timeSlot).
+        const guestName = bookingData.name || 'Guest';
+        const dateLabel = bookingData.date || '';
+        const timeLabel = bookingData.slot || '';
+
         if (isAccept) {
           statusTitle.innerText = "Booking Approved!";
-          statusText.innerText = `The court for ${bookingData.guestName} on ${bookingData.date} (${bookingData.timeSlot}) is now marked as BOOKED.`;
+          statusText.innerText = `The court for ${guestName} on ${dateLabel} (${timeLabel}) is now marked as BOOKED.`;
           iconContainer.innerHTML = `<span class="text-green-500 text-3xl font-bold">✓</span>`;
         } else {
           statusTitle.innerText = "Booking Rejected";
-          statusText.innerText = `The booking request for ${bookingData.guestName} has been rejected and the slot is released.`;
+          statusText.innerText = `The booking request for ${guestName} has been rejected and the slot is released.`;
           iconContainer.innerHTML = `<span class="text-orange-500 text-3xl font-bold">✕</span>`;
         }
 
@@ -101,7 +111,7 @@
     <div id="iconContainer" class="w-16 h-16 bg-white/5 border border-white/10 rounded-full flex items-center justify-center mx-auto">
       <span class="text-slate-400 text-sm">...</span>
     </div>
-    
+
     <h1 id="statusTitle" class="text-2xl font-black italic tracking-wide text-white">Processing Request...</h1>
     <p id="statusText" class="text-sm text-slate-300">Connecting to database to update booking status...</p>
 
